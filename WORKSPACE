@@ -1,3 +1,12 @@
+git_repository(
+  name = "org_pubref_rules_protobuf",
+  remote = "https://github.com/pubref/rules_protobuf",
+  tag = "v0.7.1",
+)
+
+load("@org_pubref_rules_protobuf//java:rules.bzl", "java_proto_repositories")
+java_proto_repositories()
+
 http_file(
   name = "gen_java_grpc_linux_x86_64",
   url = "https://repo1.maven.org/maven2/io/grpc/protoc-gen-grpc-java/1.0.0/protoc-gen-grpc-java-1.0.0-linux-x86_64.exe",
