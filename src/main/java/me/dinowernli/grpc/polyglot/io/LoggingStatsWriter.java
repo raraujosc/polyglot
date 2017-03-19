@@ -14,24 +14,42 @@ import io.grpc.stub.StreamObserver;
 public class LoggingStatsWriter implements StreamObserver<DynamicMessage> {
   private static final Logger logger = LoggerFactory.getLogger(LoggingStatsWriter.class);
   private int numResponses;
+  private int numTotal;
+  private int numSuccesses;
+  private long start;
 
   public LoggingStatsWriter() {
     numResponses = 0;
+    start = System.currentTimeMillis();
   }
 
   @Override
   public void onCompleted() {
-    logger.info("Completed rpc with " + numResponses + " response(s)");
+    //logger.info("Completed rpc with " + numResponses + " response(s) in " + (System.currentTimeMillis() - start) + " ms");
+    if (numTotal >= 50) {
+	    logger.info("Successes " + numSuccesses);
+	    numTotal = 0;
+	    numSuccesses = 0;
+    }
+    numSuccesses++;
+    numTotal++;
+//    logger.info("Successes " + numSuccesses + " failures " + numTotal);
   }
 
   @Override
   public void onError(Throwable t) {
-    logger.error("Aborted rpc due to error", t);
+    //logger.error("Aborted rpc due to error in " + (System.currentTimeMillis() - start) + " ms", t);
+    if (numTotal >= 50) {
+	    logger.info("Successes " + numSuccesses);
+	    numTotal = 0;
+	    numSuccesses = 0;
+    }
+    numTotal++;
   }
 
   @Override
   public void onNext(DynamicMessage message) {
-    logger.info("Got response message");
+    //logger.info("Got response message");
     ++numResponses;
   }
 }

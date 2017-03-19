@@ -2,12 +2,14 @@ package me.dinowernli.grpc.polyglot.io;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.util.Collections;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
@@ -31,8 +33,10 @@ public class MessageWriter<T extends Message> implements StreamObserver<T> {
    * Creates a new {@link MessageWriter} which writes the messages it sees to the supplied
    * {@link Output}.
    */
-  public static <T extends Message> MessageWriter<T> create(Output output) {
-    return new MessageWriter<T>(JsonFormat.printer(), output);
+  public static <T extends Message> MessageWriter<T> create(
+		  Output output, Iterable<Descriptor> descriptors) {
+    return new MessageWriter<T>(JsonFormat.printer().usingTypeRegistry(
+			    JsonFormat.TypeRegistry.newBuilder().add(descriptors).build()), output);
   }
 
   /**
@@ -41,7 +45,7 @@ public class MessageWriter<T extends Message> implements StreamObserver<T> {
    */
   public static <M extends Message> String writeJsonStream(ImmutableList<M> messages) {
     ByteArrayOutputStream resultStream = new ByteArrayOutputStream();
-    MessageWriter<M> writer = MessageWriter.create(Output.forStream(new PrintStream(resultStream)));
+    MessageWriter<M> writer = MessageWriter.create(Output.forStream(new PrintStream(resultStream)), Collections.emptyList());
     writer.writeAll(messages);
     return resultStream.toString();
   }

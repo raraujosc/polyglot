@@ -12,6 +12,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorSet;
+import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.Descriptors.MethodDescriptor;
@@ -45,6 +46,14 @@ public class ServiceResolver {
     return new ServiceResolver(result.build());
   }
   
+  public Iterable<Descriptor> getAllMessageDescriptors() {
+    ArrayList<Descriptor> descriptors = new ArrayList<>();
+    for (FileDescriptor fileDescriptor : fileDescriptors) {
+      descriptors.addAll(fileDescriptor.getMessageTypes());
+    }
+    return descriptors;
+  }
+
   /** Lists all of the services found in the file descriptors */
   public Iterable<ServiceDescriptor> listServices() {
     ArrayList<ServiceDescriptor> serviceDescriptors = new ArrayList<ServiceDescriptor>(); 

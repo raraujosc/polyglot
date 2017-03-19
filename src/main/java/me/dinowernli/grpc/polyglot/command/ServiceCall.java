@@ -3,6 +3,7 @@ package me.dinowernli.grpc.polyglot.command;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -59,29 +60,55 @@ public class ServiceCall {
     MethodDescriptor methodDescriptor = serviceResolver.resolveServiceMethod(grpcMethodName);
 
     logger.info("Creating dynamic grpc client");
-    DynamicGrpcClient dynamicClient;
-    if (callConfig.hasOauthConfig()) {
-      Credentials credentials =
-          new OauthCredentialsFactory(callConfig.getOauthConfig()).getCredentials();
-
-      dynamicClient = DynamicGrpcClient.createWithCredentials(
-          methodDescriptor, hostAndPort, callConfig, credentials);
-
-    } else {
-      dynamicClient = DynamicGrpcClient.create(methodDescriptor, hostAndPort, callConfig);
-    }
-
     ImmutableList<DynamicMessage> requestMessages =
         MessageReader.forStdin(methodDescriptor.getInputType()).read();
-    StreamObserver<DynamicMessage> streamObserver =
-        CompositeStreamObserver.of(new LoggingStatsWriter(), MessageWriter.create(output));
-    logger.info(String.format(
-        "Making rpc with %d request(s) to endpoint [%s]", requestMessages.size(), hostAndPort));
-    try {
-      dynamicClient.call(requestMessages, streamObserver, callOptions(callConfig)).get();
-    } catch (InterruptedException | ExecutionException e) {
-      throw new RuntimeException("Caught exeception while waiting for rpc", e);
-    }
+
+    LoggingStatsWriter loggingStatsWriter = new LoggingStatsWriter();
+    AtomicInteger count = new AtomicInteger();
+//    for (int i = 0; i < 1; ++i) {
+//      new Thread(() -> {
+	try {
+	//logger.info("Start " + Integer.toString(count.incrementAndGet()));
+        DynamicGrpcClient dynamicClient;
+        if (callConfig.hasOauthConfig()) {
+          Credentials credentials =
+              new OauthCredentialsFactory(callConfig.getOauthConfig()).getCredentials();
+  
+          dynamicClient = DynamicGrpcClient.createWithCredentials(
+              methodDescriptor, hostAndPort, callConfig, credentials);
+  
+        } else {
+          dynamicClient = DynamicGrpcClient.create(methodDescriptor, hostAndPort, callConfig);
+        }
+  
+        StreamObserver<DynamicMessage> streamObserver =
+            CompositeStreamObserver.of(loggingStatsWriter, MessageWriter.create(output, serviceResolver.getAllMessageDescriptors()));
+        logger.info(String.format(
+            "Making rpc with %d request(s) to endpoint [%s]", requestMessages.size(), hostAndPort));
+        try {
+          dynamicClient.call(requestMessages, streamObserver, callOptions(callConfig)).get();
+        } catch (InterruptedException | ExecutionException e) {
+          throw new RuntimeException("Caught exeception while waiting for rpc", e);
+        }
+        dynamicClient.close();
+	} catch (Exception e) {
+          logger.error("Exception " + e.toString());
+	}
+	//logger.info("End " + Integer.toString(count.decrementAndGet()));
+//      }).start();
+//      try {
+//	      Thread.sleep(10000);
+//      } catch (InterruptedException e) {
+//        logger.error("InterruptedException " + e.toString());
+//	break;
+//      }
+//    }
+//    try {
+//	    Thread.sleep(1000);
+//    } catch (InterruptedException e) {
+//	    logger.error("InterruptedException " + e.toString());
+//    }
+    logger.info("Break " + Integer.toString(count.get()));
   }
 
   private static CallOptions callOptions(CallConfiguration callConfig) {

@@ -23,6 +23,7 @@ import com.google.protobuf.Descriptors.MethodDescriptor;
 import com.google.protobuf.DynamicMessage;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
+import io.grpc.ManagedChannel;
 import io.grpc.ClientCall;
 import io.grpc.ClientInterceptors;
 import io.grpc.MethodDescriptor.MethodType;
@@ -44,6 +45,7 @@ public class DynamicGrpcClient {
   private static final Logger logger = LoggerFactory.getLogger(DynamicGrpcClient.class);
   private final MethodDescriptor protoMethodDescriptor;
   private final Channel channel;
+  private final ManagedChannel managedChannel;
   private final ListeningExecutorService executor;
 
   /** Creates a client for the supplied method, talking to the supplied endpoint. */
@@ -51,8 +53,8 @@ public class DynamicGrpcClient {
       MethodDescriptor protoMethod,
       HostAndPort endpoint,
       CallConfiguration callConfiguration) {
-    Channel channel = createChannel(endpoint, callConfiguration);
-    return new DynamicGrpcClient(protoMethod, channel, createExecutorService());
+    ManagedChannel channel = createChannel(endpoint, callConfiguration);
+    return new DynamicGrpcClient(protoMethod, channel, channel, createExecutorService());
   }
 
   /**
@@ -65,18 +67,20 @@ public class DynamicGrpcClient {
       CallConfiguration callConfiguration,
       Credentials credentials) {
     ListeningExecutorService executor = createExecutorService();
-    Channel channel = createChannel(endpoint, callConfiguration);
+    ManagedChannel channel = createChannel(endpoint, callConfiguration);
     return new DynamicGrpcClient(
         protoMethod,
         ClientInterceptors.intercept(channel, new ClientAuthInterceptor(credentials, executor)),
+        channel,
         executor);
   }
 
   @VisibleForTesting
   DynamicGrpcClient(
-      MethodDescriptor protoMethodDescriptor, Channel channel, ListeningExecutorService executor) {
+      MethodDescriptor protoMethodDescriptor, Channel channel, ManagedChannel managedChannel, ListeningExecutorService executor) {
     this.protoMethodDescriptor = protoMethodDescriptor;
     this.channel = channel;
+    this.managedChannel = managedChannel;
     this.executor = executor;
   }
 
@@ -93,7 +97,7 @@ public class DynamicGrpcClient {
     MethodType methodType = getMethodType();
     long numRequests = requests.size();
     if (methodType == MethodType.UNARY) {
-      logger.info("Making unary call");
+//      logger.info("Making unary call");
       Preconditions.checkArgument(numRequests == 1,
           "Need exactly 1 request for unary call, but got: " + numRequests);
       return callUnary(requests.get(0), responseObserver, callOptions);
@@ -110,6 +114,10 @@ public class DynamicGrpcClient {
       logger.info("Making bidi streaming call with " + requests.size() + " requests");
       return callBidiStreaming(requests, responseObserver, callOptions);
     }
+  }
+
+  public void close() {
+    managedChannel.shutdownNow();
   }
 
   private ListenableFuture<Void> callBidiStreaming(
@@ -222,13 +230,13 @@ public class DynamicGrpcClient {
         Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).build()));
   }
 
-  private static Channel createPlaintextChannel(HostAndPort endpoint) {
+  private static ManagedChannel createPlaintextChannel(HostAndPort endpoint) {
     return NettyChannelBuilder.forAddress(endpoint.getHostText(), endpoint.getPort())
         .negotiationType(NegotiationType.PLAINTEXT)
         .build();
   }
 
-  private static Channel createChannel(HostAndPort endpoint, CallConfiguration callConfiguration) {
+  private static ManagedChannel createChannel(HostAndPort endpoint, CallConfiguration callConfiguration) {
     if (!callConfiguration.getUseTls()) {
       return createPlaintextChannel(endpoint);
     }
