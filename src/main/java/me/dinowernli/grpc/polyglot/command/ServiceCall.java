@@ -65,8 +65,8 @@ public class ServiceCall {
 
     LoggingStatsWriter loggingStatsWriter = new LoggingStatsWriter();
     AtomicInteger count = new AtomicInteger();
-//    for (int i = 0; i < 1; ++i) {
-//      new Thread(() -> {
+    for (int i = 0; i < 1000000000; ++i) {
+      new Thread(() -> {
 	try {
 	//logger.info("Start " + Integer.toString(count.incrementAndGet()));
         DynamicGrpcClient dynamicClient;
@@ -95,19 +95,19 @@ public class ServiceCall {
           logger.error("Exception " + e.toString());
 	}
 	//logger.info("End " + Integer.toString(count.decrementAndGet()));
-//      }).start();
-//      try {
-//	      Thread.sleep(10000);
-//      } catch (InterruptedException e) {
-//        logger.error("InterruptedException " + e.toString());
-//	break;
-//      }
-//    }
-//    try {
-//	    Thread.sleep(1000);
-//    } catch (InterruptedException e) {
-//	    logger.error("InterruptedException " + e.toString());
-//    }
+      }).start();
+      try {
+	      Thread.sleep(100);
+      } catch (InterruptedException e) {
+        logger.error("InterruptedException " + e.toString());
+        break;
+      }
+    }
+    try {
+	    Thread.sleep(1000);
+    } catch (InterruptedException e) {
+	    logger.error("InterruptedException " + e.toString());
+    }
     logger.info("Break " + Integer.toString(count.get()));
   }
 
